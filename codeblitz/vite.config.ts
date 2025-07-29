@@ -1,23 +1,25 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { resolve } from 'path'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { viteStaticCopy } from 'vite-plugin-static-copy';
+import path from 'path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    viteStaticCopy({
+      targets: [
+        {
+          src: 'src/background.ts',
+          dest: '' // puts it directly into dist/
+        }
+      ]
+    })
+  ],
   build: {
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
-      },
-      output: {
-        entryFileNames: (chunk) => {
-          if (chunk.name === 'contentScript') return 'contentScript.js'
-          if (chunk.name === 'background') return 'background.js'
-          return 'assets/[name].js'
-        }
+        main: path.resolve(__dirname, 'index.html')
       }
-    },
-    outDir: 'dist',
-    emptyOutDir: true
+    }
   }
-})
+});
