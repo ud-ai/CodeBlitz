@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "CodeBlitz",
+  "version": "1.0",
+  "description": "AI learning assistant for LeetCode and YouTube",
+  "action": {
+    "default_popup": "index.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["storage", "scripting", "tabs", "activeTab"],
+  "host_permissions": ["https://leetcode.com/*", "https://www.youtube.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://leetcode.com/*", "https://www.youtube.com/*"],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "public/icon16.png",
+    "48": "public/icon48.png",
+    "128": "public/icon128.png"
+  }
+}
