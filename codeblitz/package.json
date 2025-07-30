@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build && npm run build:background",
     "build:content": "tsup src/contentScript.ts --out-dir dist --minify --format iife --target chrome112",
-    "build:background": "tsup src/background.ts --format esm,cjs --out-dir dist --minify",
+    "build:background": "tsup src/background.ts --out-dir dist --minify --format iife --target chrome112 && copy dist\\background.js background.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
