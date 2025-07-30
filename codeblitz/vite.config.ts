@@ -1,7 +1,6 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import { viteStaticCopy } from 'vite-plugin-static-copy';
-import path from 'path';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { viteStaticCopy } from 'vite-plugin-static-copy'
 
 export default defineConfig({
   plugins: [
@@ -9,17 +8,17 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
-          src: 'src/background.ts',
-          dest: '' // puts it directly into dist/
+          src: 'public/manifest.json',
+          dest: '.'
+        },
+        {
+          src: 'public/*.png',
+          dest: '.'
         }
       ]
     })
   ],
   build: {
-    rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, 'index.html')
-      }
-    }
+    outDir: 'dist',
   }
-});
+})
