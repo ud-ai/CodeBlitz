@@ -5,24 +5,30 @@ function App() {
   const [leetcodeTitle, setLeetcodeTitle] = useState<string | null>(null);
 
   useEffect(() => {
-    // Query the active tab
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const activeTab = tabs[0];
-      if (activeTab?.id && activeTab.url?.includes("leetcode.com")) {
-        // Send a message to the content script
-        chrome.tabs.sendMessage(
-          activeTab.id,
-          { type: "GET_LEETCODE_TITLE" },
-          (response) => {
-            if (chrome.runtime.lastError) {
-              setLeetcodeTitle("Unable to fetch title.");
-              return;
+    // Check if chrome API is available (will be undefined in dev environment)
+    if (typeof chrome !== 'undefined' && chrome.tabs) {
+      // Query the active tab
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const activeTab = tabs[0];
+        if (activeTab?.id && activeTab.url?.includes("leetcode.com")) {
+          // Send a message to the content script
+          chrome.tabs.sendMessage(
+            activeTab.id,
+            { type: "GET_LEETCODE_TITLE" },
+            (response) => {
+              if (chrome.runtime.lastError) {
+                setLeetcodeTitle("Unable to fetch title.");
+                return;
+              }
+              setLeetcodeTitle(response?.title || "No title found");
             }
-            setLeetcodeTitle(response?.title || "No title found");
-          }
-        );
-      }
-    });
+          );
+        }
+      });
+    } else {
+      // In development environment, show a placeholder
+      setLeetcodeTitle("Development Mode - Chrome API not available");
+    }
   }, []);
 
   return (

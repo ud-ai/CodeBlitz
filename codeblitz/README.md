@@ -1,11 +1,44 @@
-# React + TypeScript + Vite
+# CodeBlitz - AI Learning Assistant for LeetCode and YouTube
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+CodeBlitz is a Chrome extension that provides an AI-powered learning assistant for LeetCode problems and YouTube tutorials. It helps users understand coding problems, get implementation tips, and learn more effectively.
 
-Currently, two official plugins are available:
+## Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Environment Variables
+
+This extension requires a Gemini API key to function properly. Follow these steps to set it up:
+
+1. Copy the `.env.example` file to a new file named `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Get a Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+
+3. Update the `.env` file with your API key:
+   ```
+   GEMINI_API_KEY=your_api_key_here
+   ```
+
+4. The `.env` file is excluded from Git in `.gitignore` to keep your API key secure
+
+### Development
+
+To start the development server:
+
+```bash
+npm run dev
+```
+
+### Building
+
+To build the extension for production:
+
+```bash
+npm run build:all
+```
+
+The built extension will be in the `dist` directory, ready to be loaded into Chrome.
 
 ## Expanding the ESLint configuration
 
