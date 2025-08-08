@@ -8,15 +8,14 @@
     "build:background": "node -r dotenv/config ./node_modules/tsup/dist/cli-default.js src/background.ts --out-dir dist --minify --format iife --target chrome112 && copy dist\\background.global.js public\\background.js",
     "build:content": "tsup src/contentScript.ts --out-dir dist --minify --format iife --target chrome112 && copy dist\\contentScript.global.js public\\contentScript.js",
     "build": "npm run build:background && npm run build:content && vite build",
-    "build:all": "npm run build && npm run copy-public",
-    "copy-public": "vite build",
-    "lint": "eslint .",
+    "build:all": "npm run build:background && npm run build:content && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "dotenv": "^17.2.1",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "react-error-boundary": "^6.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
