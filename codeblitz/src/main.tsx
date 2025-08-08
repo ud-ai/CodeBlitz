@@ -9,14 +9,14 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetError
     <div style={{ padding: '20px', backgroundColor: '#ff6b6b', color: 'white', borderRadius: '8px' }}>
       <h2>Something went wrong:</h2>
       <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{error.message}</pre>
-      <button
+      <button 
         onClick={resetErrorBoundary}
-        style={{
-          marginTop: '10px',
-          padding: '8px 16px',
-          backgroundColor: 'white',
-          color: '#ff6b6b',
-          border: 'none',
+        style={{ 
+          marginTop: '10px', 
+          padding: '8px 16px', 
+          backgroundColor: 'white', 
+          color: '#ff6b6b', 
+          border: 'none', 
           borderRadius: '4px',
           cursor: 'pointer',
         }}

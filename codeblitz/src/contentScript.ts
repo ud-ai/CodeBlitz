@@ -333,6 +333,13 @@ function injectSidebar(startInInterview: boolean = false) {
     #leetcode-ai-sidebar #chat-input:focus { border-color: rgba(124,58,237,0.5); }
     #leetcode-ai-sidebar .icon-button { background-color: rgba(124,58,237,0.15); color:#d6c7ff; border:1px solid rgba(124,58,237,0.4); border-radius:10px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
     #leetcode-ai-sidebar .subtle { color:#a9a9b8; font-size:0.8rem; }
+    /* Markdown & code rendering */
+    #leetcode-ai-sidebar .message-content { white-space: pre-wrap; }
+    #leetcode-ai-sidebar .message-content code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 0.92em; }
+    #leetcode-ai-sidebar .message-content pre { background:#0c1025; border:1px solid rgba(255,255,255,0.12); padding:12px; border-radius:12px; overflow:auto; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04); }
+    #leetcode-ai-sidebar .message-content pre code { background: transparent; padding: 0; display: block; line-height: 1.5; }
+    #leetcode-ai-sidebar .message-content ul { margin: 0.25rem 0 0.25rem 1.25rem; padding: 0; }
+    #leetcode-ai-sidebar .message-content li { margin: 0.2rem 0; }
   `;
   document.head.appendChild(styleOverrides);
 
@@ -721,7 +728,12 @@ function sendToAI(userMessage: string) {
           console.error('Chrome runtime error:', chrome.runtime.lastError);
           resolve({ answer: `⚠️ Error: ${chrome.runtime.lastError.message}` });
         } else {
-          resolve(response);
+          // Fallback if extension can't access service worker response
+          if (!response) {
+            resolve({ answer: '⚠️ No response from background. Ensure extension is reloaded and API key is set.' });
+          } else {
+            resolve(response);
+          }
         }
       });
     });
@@ -743,9 +755,20 @@ function sendToAI(userMessage: string) {
             <p class="message-content">⚠️ Sorry, no reply received. Check background script/API key.</p>
           `;
         } else {
+          // Render Markdown-like code blocks if any
+          const safe = (response.answer as string)
+            .replace(/```([a-zA-Z0-9]*)\n([\s\S]*?)```/g, (_m, lang, code) => {
+              const l = String(lang || '').toLowerCase();
+              const escaped = code
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+              return `<pre><code class="language-${l}">${escaped}</code></pre>`;
+            })
+            .replace(/`([^`]+)`/g, (_m, inline) => `<code>${String(inline).replace(/</g,'&lt;').replace(/>/g,'&gt;')}</code>`);
           aiMessageElement.innerHTML = `
             <div class="message-sender">Leeco</div>
-            <p class="message-content">${response.answer}</p>
+            <div class="message-content">${safe}</div>
           `;
         }
 

@@ -15,46 +15,91 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     // Create a promise to handle the API call
     const fetchData = async () => {
       try {
+        const apiKey = (import.meta as any).env?.GEMINI_API_KEY || "";
+        if (!apiKey) {
+          return { answer: "⚠️ Gemini API key missing. Set GEMINI_API_KEY in .env and rebuild." };
+        }
         // Set up timeout to prevent hanging requests
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
         
         try {
-          const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-goog-api-key": import.meta.env.GEMINI_API_KEY || "" // Using environment variable for API key
-            },
-            body: JSON.stringify({
-              contents: [
-                {
-                  role: "user",
-                  parts: [
-                    {
-                      text: problemStatement ? 
-                        `Problem context:\n${problemStatement}\n\nUser message:\n${prompt}` : prompt
-                    }
-                  ]
-                }
-              ],
+          const modelPrimary = 'gemini-2.0-flash';
+          const modelFallback = 'gemini-1.5-flash';
+          const makeBody = (useLean: boolean) => ({
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: problemStatement ? 
+                      `Problem context:\n${problemStatement}\n\nUser message:\n${prompt}` : prompt
+                  }
+                ]
+              }
+            ],
+            ...(useLean ? {} : {
               systemInstruction: {
                 role: "system",
                 parts: [
                   {
                     text: conversationMode === 'interview'
-                      ? "You are an expert LeetCode interviewer and mentor. Conduct a conversational interview: 1) ask one concise question at a time; 2) never give full solutions; 3) provide granular hints based on user's last message; 4) encourage verbal reasoning; 5) keep replies under 120 words; 6) include at most one follow-up question. If the user asks for examples, give minimal examples, not full code."
-                      : "You are a helpful coding mentor. Provide clear, concise guidance and brief code snippets only when explicitly requested. Prefer stepwise reasoning, bullet points, and keep answers actionable under 150 words."
+                      ? [
+                        "You are an expert LeetCode interviewer and mentor.",
+                        "- Ask ONE concise question at a time.",
+                        "- Prefer hints over solutions.",
+                        "- Keep replies under 120 words.",
+                        "- Use simple Markdown for lists.",
+                        "- When user requests code, provide only a small snippet and explain in comments.",
+                      ].join('\n')
+                      : [
+                        "You are a helpful coding mentor.",
+                        "- Provide clear, concise guidance.",
+                        "- When explicitly asked for code, provide a minimal, correct solution with the exact language the user is using on the page (deduce from LeetCode language snippet if possible; default to JavaScript).",
+                        "- Wrap code in fenced Markdown blocks with language tags, keep under 80 cols where practical.",
+                        "- Prefer stepwise reasoning and bullets."
+                      ].join('\n')
                   }
                 ]
-              },
-              generationConfig: {
-                temperature: conversationMode === 'interview' ? 0.6 : 0.7,
-                maxOutputTokens: 700
               }
             }),
-            signal: controller.signal
+            generationConfig: {
+              temperature: conversationMode === 'interview' ? 0.6 : 0.7,
+              maxOutputTokens: 700
+            }
           });
+
+          async function callModel(model: string, lean: boolean) {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": apiKey
+              },
+              body: JSON.stringify(makeBody(lean)),
+              signal: controller.signal
+            });
+            return res;
+          }
+
+          // First try primary model with full body
+          let response = await callModel(modelPrimary, false);
+          if (!response.ok && response.status === 400) {
+            // Retry with a lean body (no systemInstruction) for compatibility
+            response = await callModel(modelPrimary, true);
+          }
+          if (!response.ok && response.status === 400) {
+            // Retry with fallback model
+            response = await callModel(modelFallback, true);
+          }
+          if (!response.ok) {
+            let errText = `API responded with status: ${response.status}`;
+            try {
+              const errJson = await response.json();
+              if (errJson?.error?.message) errText += ` - ${errJson.error.message}`;
+            } catch {}
+            throw new Error(errText);
+          }
           
           clearTimeout(timeoutId);
           
@@ -65,14 +110,25 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
           const data = await response.json();
           console.log("Gemini response data:", data); // ✅ Log entire response for debugging
 
-          if (data?.candidates && data.candidates.length > 0 && data.candidates[0].content?.parts && data.candidates[0].content.parts.length > 0) {
-            const reply = data.candidates[0].content.parts[0].text.trim();
+          const first = data?.candidates?.[0];
+          const parts = first?.content?.parts || [];
+          const reply = Array.isArray(parts)
+            ? parts.map((p: any) => {
+                if (typeof p?.text === 'string') return p.text;
+                if (p?.inlineData?.data) return atob(p.inlineData.data);
+                return '';
+              }).join('')?.trim()
+            : '';
+
+          if (reply) {
             return { answer: reply };
           } else if (data?.error) {
             console.error("Gemini API Error:", data.error);
-            return { answer: "Gemini API error: " + data.error.message };
+            return { answer: `Gemini API error: ${data.error.message} (code: ${data.error.code || 'unknown'})` };
+          } else if (data?.promptFeedback?.blockReason) {
+            return { answer: `Response blocked by safety: ${data.promptFeedback.blockReason}` };
           } else {
-            return { answer: "No valid response received from AI." };
+            return { answer: "No valid response received from AI (empty candidates)." };
           }
         } catch (fetchError) {
           if (fetchError instanceof Error && fetchError.name === 'AbortError') {
