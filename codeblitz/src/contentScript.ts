@@ -19,7 +19,7 @@ if (window.location.hostname.includes("leetcode.com")) {
         }
 
         if (request.action === "startInterview") {
-          injectSidebar();
+          injectSidebar(true);
           sendResponse({ status: "sidebar_injected" });
         }
 
@@ -76,6 +76,12 @@ function saveConversation(messages: ConversationMessage[]): Promise<void> {
   });
 }
 
+// Mode and timer state
+type ConversationMode = 'interview' | 'normal'
+let currentMode: ConversationMode = 'normal'
+let interviewStartMs: number | null = null
+let interviewTimerId: number | null = null
+
 function addTriggerButton() {
   if (document.getElementById("start-interview-btn")) return;
 
@@ -115,7 +121,7 @@ function addTriggerButton() {
   document.body.appendChild(button);
 }
 
-function injectSidebar() {
+function injectSidebar(startInInterview: boolean = false) {
   if (document.getElementById("leetcode-ai-sidebar")) return;
 
   // Create and inject CSS for the sidebar
@@ -291,6 +297,7 @@ function injectSidebar() {
   // Override and extend styles to match a sleeker UI
   const styleOverrides = document.createElement('style');
   styleOverrides.textContent = `
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     #leetcode-ai-sidebar { background: #0f1220; box-shadow: -6px 0 24px rgba(0,0,0,0.45); border-left: 1px solid rgba(255,255,255,0.06); position: fixed; right: 0; top: 0; --sidebar-min: 320px; --sidebar-max: 780px; }
     #leetcode-ai-sidebar .resize-handle { position: absolute; left: -6px; top: 0; width: 6px; height: 100%; cursor: ew-resize; background: transparent; }
     #leetcode-ai-sidebar .resize-handle:hover { background: rgba(255,255,255,0.08); }
@@ -300,9 +307,12 @@ function injectSidebar() {
     #leetcode-ai-sidebar.collapsed #cb-expand { display: block; }
     #leetcode-ai-sidebar #cb-collapse { background: transparent; border: none; color: #c9c9d1; cursor: pointer; border-radius: 6px; padding: 4px 6px; }
     #leetcode-ai-sidebar #cb-collapse:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    #leetcode-ai-sidebar, #leetcode-ai-sidebar * { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
     #leetcode-ai-sidebar .status-bar { height: 36px; display:flex; align-items:center; gap:8px; padding:0 12px; background: linear-gradient(180deg, rgba(48,211,122,0.15), rgba(48,211,122,0.06)); border-bottom: 1px solid rgba(48,211,122,0.25); }
     #leetcode-ai-sidebar .status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: #31d17a; box-shadow: 0 0 0 2px rgba(49,209,122,0.25); }
     #leetcode-ai-sidebar .status-spacer { flex: 1; }
+    #leetcode-ai-sidebar #status-label { color: #cfeedd; font-weight: 600; font-size: 0.82rem; }
+    #leetcode-ai-sidebar #status-timer { color: #bfe7d1; font-size: 0.82rem; }
     #leetcode-ai-sidebar .text-button { background: transparent; color:#c9c9d1; border:none; font-size:0.9rem; padding:4px 8px; cursor:pointer; border-radius:6px; }
     #leetcode-ai-sidebar .text-button:hover { background-color: rgba(255,255,255,0.06); color:#fff; }
     #leetcode-ai-sidebar .sidebar-header { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.06); background:#151933; }
@@ -310,7 +320,7 @@ function injectSidebar() {
     #leetcode-ai-sidebar .chip { border:1px solid rgba(255,255,255,0.12); background-color:rgba(255,255,255,0.04); color:#e8e8f2; border-radius:999px; padding:6px 12px; font-size:0.85rem; cursor:pointer; }
     #leetcode-ai-sidebar .chip.primary { border-color: rgba(124,58,237,0.4); background-color: rgba(124,58,237,0.15); color:#d6c7ff; }
     #leetcode-ai-sidebar #chat-container { padding:12px; gap:12px; }
-    #leetcode-ai-sidebar .message { padding:10px 12px; border-radius:12px; max-width:88%; border:1px solid rgba(255,255,255,0.06); }
+    #leetcode-ai-sidebar .message { padding:12px 14px; border-radius:16px; max-width:88%; border:1px solid rgba(255,255,255,0.06); box-shadow: 0 2px 10px rgba(0,0,0,0.25); }
     #leetcode-ai-sidebar .ai-message { background-color:#171a2e; }
     #leetcode-ai-sidebar .user-message { background: linear-gradient(180deg, #7c3aed, #6930d8); }
     #leetcode-ai-sidebar .reaction-bar { display:flex; gap:6px; margin-top:6px; opacity:0.85; }
@@ -318,8 +328,8 @@ function injectSidebar() {
     #leetcode-ai-sidebar .action-buttons { padding:10px 12px; gap:8px; border-top:1px solid rgba(255,255,255,0.06); background:#12162b; }
     #leetcode-ai-sidebar .action-button { background-color: rgba(255,255,255,0.06); color:#e8e8f2; border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:8px 12px; }
     #leetcode-ai-sidebar .action-button:hover { background-color: rgba(255,255,255,0.12); }
-    #leetcode-ai-sidebar .chat-input-container { padding:10px 12px; display:grid; grid-template-columns:36px 1fr 40px; gap:8px; border-top:1px solid rgba(255,255,255,0.06); align-items:end; background:#0f1220; }
-    #leetcode-ai-sidebar #chat-input { padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:#141834; color:#e8e8f2; }
+    #leetcode-ai-sidebar .chat-input-container { padding:12px; display:grid; grid-template-columns:36px 1fr 40px; gap:10px; border-top:1px solid rgba(255,255,255,0.06); align-items:end; background:#0f1220; }
+    #leetcode-ai-sidebar #chat-input { padding:12px 14px; border-radius:14px; border:1px solid rgba(255,255,255,0.12); background:#141834; color:#e8e8f2; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04); }
     #leetcode-ai-sidebar #chat-input:focus { border-color: rgba(124,58,237,0.5); }
     #leetcode-ai-sidebar .icon-button { background-color: rgba(124,58,237,0.15); color:#d6c7ff; border:1px solid rgba(124,58,237,0.4); border-radius:10px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
     #leetcode-ai-sidebar .subtle { color:#a9a9b8; font-size:0.8rem; }
@@ -336,10 +346,11 @@ function injectSidebar() {
     <div id="cb-resize" class="resize-handle" title="Drag to resize"></div>
     <div class="status-bar">
       <span class="status-dot" aria-label="online" title="Online"></span>
-      <span id="status-clock" class="subtle"></span>
+      <span id="status-label" class="subtle">Normal</span>
+      <span id="status-timer" class="subtle"></span>
       <div class="status-spacer"></div>
       <button id="cb-collapse" class="text-button hide-when-collapsed" title="Collapse">◂</button>
-      <button id="exit-interview" class="text-button hide-when-collapsed">Exit</button>
+      <button id="end-interview" class="text-button hide-when-collapsed">End Interview</button>
     </div>
     <div class="sidebar-header hide-when-collapsed">
       <h3>Leeco AI • Learning Companion for LeetCode & YouTube</h3>
@@ -384,20 +395,40 @@ function injectSidebar() {
 
   document.body.appendChild(sidebar);
 
-  // Status clock
-  const clockEl = document.getElementById('status-clock');
-  const setClock = () => {
-    const now = new Date();
-    const two = (n: number) => String(n).padStart(2, '0');
-    if (clockEl) clockEl.textContent = `${two(now.getHours())}:${two(now.getMinutes())}`;
-  };
-  setClock();
-  const clockInterval = window.setInterval(setClock, 15000);
+  // Mode + timer controls
+  const labelEl = document.getElementById('status-label');
+  const timerEl = document.getElementById('status-timer');
 
-  document.getElementById("exit-interview")?.addEventListener("click", () => {
-    clearInterval(clockInterval);
-    sidebar.remove();
-  });
+  function updateTimer() {
+    if (!timerEl || interviewStartMs == null) return;
+    const elapsed = Date.now() - interviewStartMs;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const h = Math.floor(elapsed / 3600000);
+    const m = Math.floor((elapsed % 3600000) / 60000);
+    const s = Math.floor((elapsed % 60000) / 1000);
+    timerEl.textContent = `${h > 0 ? pad(h) + ':' : ''}${pad(m)}:${pad(s)}`;
+  }
+
+  function startInterviewMode() {
+    currentMode = 'interview';
+    if (labelEl) labelEl.textContent = 'Interview';
+    interviewStartMs = Date.now();
+    updateTimer();
+    if (interviewTimerId) window.clearInterval(interviewTimerId);
+    interviewTimerId = window.setInterval(updateTimer, 1000);
+    try { const k = `cb_mode_${location.hostname}`; chrome.storage?.local.set({ [k]: currentMode }); } catch {}
+  }
+
+  function endInterviewMode() {
+    currentMode = 'normal';
+    if (labelEl) labelEl.textContent = 'Normal';
+    interviewStartMs = null;
+    if (timerEl) timerEl.textContent = '';
+    if (interviewTimerId) { window.clearInterval(interviewTimerId); interviewTimerId = null; }
+    try { const k = `cb_mode_${location.hostname}`; chrome.storage?.local.set({ [k]: currentMode }); } catch {}
+  }
+
+  document.getElementById('end-interview')?.addEventListener('click', endInterviewMode);
 
   // Restore width/collapsed state
   try {
@@ -448,6 +479,16 @@ function injectSidebar() {
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   });
+
+  // Restore persisted UI state
+  try {
+    const modeKey = `cb_mode_${location.hostname}`;
+    chrome.storage?.local.get([modeKey], (res) => {
+      const m = res?.[modeKey] as ConversationMode | undefined;
+      if (m === 'interview') startInterviewMode();
+      else endInterviewMode();
+    });
+  } catch {}
 
   // Restore past conversation
   const chatContainerEl = document.getElementById("chat-container");
@@ -502,6 +543,9 @@ function injectSidebar() {
   }
   document.getElementById('mic-button')?.addEventListener('click', startSpeechToText);
   document.getElementById('speak-btn')?.addEventListener('click', startSpeechToText);
+
+  // Start interview if requested
+  if (startInInterview) startInterviewMode();
 
   // Handle the explain button click
   document.getElementById("explain-btn")?.addEventListener("click", () => {
@@ -670,7 +714,8 @@ function sendToAI(userMessage: string) {
       chrome.runtime.sendMessage({ 
         type: "AI_QUERY", 
         message: userMessage,
-        problemStatement: problemDescription
+        problemStatement: problemDescription,
+        mode: currentMode
       }, (response) => {
         if (chrome.runtime.lastError) {
           console.error('Chrome runtime error:', chrome.runtime.lastError);

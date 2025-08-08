@@ -10,6 +10,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request.type === "AI_QUERY") {
     const prompt = request.prompt || request.message;
     const problemStatement = request.problemStatement || "";
+    const conversationMode: 'interview' | 'normal' = request.mode === 'interview' ? 'interview' : 'normal';
     
     // Create a promise to handle the API call
     const fetchData = async () => {
@@ -32,7 +33,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
                   parts: [
                     {
                       text: problemStatement ? 
-                        `Problem: ${problemStatement}\n\nUser query: ${prompt}` : prompt
+                        `Problem context:\n${problemStatement}\n\nUser message:\n${prompt}` : prompt
                     }
                   ]
                 }
@@ -41,13 +42,15 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
                 role: "system",
                 parts: [
                   {
-                    text: "You are an expert LeetCode interview assistant. Help users solve coding problems with questions and guidance."
+                    text: conversationMode === 'interview'
+                      ? "You are an expert LeetCode interviewer and mentor. Conduct a conversational interview: 1) ask one concise question at a time; 2) never give full solutions; 3) provide granular hints based on user's last message; 4) encourage verbal reasoning; 5) keep replies under 120 words; 6) include at most one follow-up question. If the user asks for examples, give minimal examples, not full code."
+                      : "You are a helpful coding mentor. Provide clear, concise guidance and brief code snippets only when explicitly requested. Prefer stepwise reasoning, bullet points, and keep answers actionable under 150 words."
                   }
                 ]
               },
               generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 1000
+                temperature: conversationMode === 'interview' ? 0.6 : 0.7,
+                maxOutputTokens: 700
               }
             }),
             signal: controller.signal
