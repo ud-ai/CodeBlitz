@@ -1,6 +1,6 @@
-# CodeBlitz - AI Learning Assistant for LeetCode and YouTube
+# CodeBlitz - AI Learning Assistant for LeetCode
 
-CodeBlitz is a Chrome extension that provides an AI-powered learning assistant for LeetCode problems and YouTube tutorials. It helps users understand coding problems, get implementation tips, and learn more effectively.
+CodeBlitz is a Chrome extension that provides an AI-powered learning assistant for LeetCode problems tutorials. It helps users understand coding problems, get implementation tips, and learn more effectively.
 
 ## Setup
 
