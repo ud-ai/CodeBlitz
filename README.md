@@ -1,102 +1,51 @@
-# CodeBlitz - AI Learning Assistant for LeetCode
+# CodeBlitz
 
-CodeBlitz is a Chrome extension that provides an AI-powered learning assistant for LeetCode problems tutorials. It helps users understand coding problems, get implementation tips, and learn more effectively.
+CodeBlitz is a Chrome extension that adds an AI mock interviewer to LeetCode. It reads the problem on the page and uses Gemini to run a practice interview in a sidebar, favoring hints over full solutions.
+
+## Features
+
+- **Interview mode:** asks one concise question at a time, prefers hints over answers, and shows a session timer.
+- **Mentor mode:** gives general guidance and returns code when you ask for it.
+- **Problem-aware prompts:** sends the problem statement from the page to Gemini as context.
+- **Voice input:** dictate answers using the Web Speech API.
+- **Saved conversations:** keeps chat history for each problem in Chrome storage.
+- **Quick actions:** one-click prompts to explain the problem, show an example, or define key terms.
+- **Adjustable sidebar:** resize or collapse it, and it remembers your layout.
+
+## Tech stack
+
+React, TypeScript, Vite, tsup, Chrome Extension Manifest V3, and the Gemini API.
+
+## How it works
+
+| Part | File | Role |
+| --- | --- | --- |
+| Content script | `codeblitz/src/contentScript.ts` | Adds the sidebar to LeetCode and reads the problem |
+| Background service worker | `codeblitz/src/background.ts` | Calls Gemini, with a 25-second timeout, retries, and model fallback |
+| Popup | `codeblitz/src/App.tsx` | Shows the current problem and starts an interview |
 
 ## Setup
 
-### Environment Variables
-
-This extension requires a Gemini API key to function properly. Follow these steps to set it up:
-
-1. Copy the `.env.example` file to a new file named `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Get a Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
-
-3. Update the `.env` file with your API key:
-   ```
-   GEMINI_API_KEY=your_api_key_here
-   ```
-
-4. The `.env` file is excluded from Git in `.gitignore` to keep your API key secure
-
-### Development
-
-To start the development server:
+You need Node.js and a [Gemini API key](https://aistudio.google.com/app/apikey).
 
 ```bash
-npm run dev
-```
-
-### Building
-
-To build the extension for production:
-
-```bash
+cd codeblitz
+npm install
+cp .env.example .env   # then add your key to .env
 npm run build:all
 ```
 
-The built extension will be in the `dist` directory, ready to be loaded into Chrome.
+Then load the extension in Chrome:
 
-## Expanding the ESLint configuration
+1. Open `chrome://extensions`.
+2. Turn on **Developer mode**.
+3. Select **Load unpacked** and choose `codeblitz/dist`.
+4. Open a LeetCode problem and select **Start AI Interview**.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+The build scripts use the Windows `copy` command, so on macOS or Linux, replace it with `cp` in `package.json`.
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Security
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+Your API key is written into the built extension, so this setup is for local use only. Don't publish or share a build that contains your key. `.env` and the generated scripts in `public/` are ignored by Git.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+To distribute the extension, move the Gemini calls to a backend so the key stays on a server.
